@@ -17,8 +17,7 @@ var client = new cql.Client({
 
 app.get("/todmorden", function (request, response) {
 		var range = getTimeRange(request);
-		console.log(range);
-    var cql = "select * from todmorden where reading_time >= '"+range.from+"' and reading_time <= '"+range.to+"' ALLOW FILTERING";
+    var cql = "select sensor_name, reading_time, reading_value from todmorden where reading_time >= '"+range.from+"' and reading_time <= '"+range.to+"' ALLOW FILTERING";
     client.execute(cql, function(err, result){
         if (err) {
             response.send(err);
@@ -53,17 +52,23 @@ function getTimeRange(request) {
 		from = from_array[2]+'-'+from_array[1]+'-'+from_array[0];
 	}	
 	if (to_array.length !== 3) {
-		var midnight = new Date();
-		midnight.setDate(midnight.getDate() + 1);
-		to = midnight.getFullYear()+'-'+(midnight.getMonth() + 1)+'-'+midnight.getDate();
+	        to = nextDayString(new Date());
 	} else {
-		to = to_array[2]+'-'+to_array[1]+'-'+to_array[0];
+		to = nextDayString(new Date(to_array[2]+'-'+to_array[1]+'-'+to_array[0]));
 	}
 	return {
 		'from': from,
 		'to': to,
-  };
+  	};
 };
 
-app.listen(8001);
-console.log("Server running at http://127.0.0.1:8001/");
+// Used for adding a day to the "to" date so that
+// the range ends at the end of that day.
+// Takes date object, returns a string Y-M-D
+function nextDayString(date_obj) {
+	date_obj.setDate(date_obj.getDate() + 1);
+	return date_obj.getFullYear()+'-'+(date_obj.getMonth() + 1)+'-'+date_obj.getDate();
+}
+
+app.listen(8003);
+console.log("Aqua API Server running on 8003");
