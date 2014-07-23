@@ -16,26 +16,32 @@ var client = new cql.Client({
 });
 
 app.get("/todmorden", function (request, response) {
-		var range = getTimeRange(request);
-    var cql = "select sensor_name, reading_time, reading_value from todmorden where reading_time >= '"+range.from+"' and reading_time <= '"+range.to+"' ALLOW FILTERING";
-    client.execute(cql, function(err, result){
-        if (err) {
-            response.send(err);
-        } else {
-            response.send(result);
-        }
+    var range = getTimeRange(request);
+    var cql_numeric = "select sensor_name, reading_time, reading_value from todmorden_numeric where reading_time >= '"+range.from+"' and reading_time <= '"+range.to+"' ALLOW FILTERING";
+    var cql_text = "select sensor_name, reading_time, reading_value from todmorden_text where reading_time >= '"+range.from+"' and reading_time <= '"+range.to+"' ALLOW FILTERING";
+    client.execute(cql_numeric, [request.params.arg0], function(numeric_err, numeric_result) {
+    	client.execute(cql_text, [request.params.arg0], function(text_err, text_result){
+	    if (numeric_err || text_err) {
+                response.send(numeric_err + text_err);        
+            } else {
+                response.send(numeric_result.rows.concat(text_result.rows));
+            }
+	});
     });
 });
 
 app.get("/todmorden/:arg0", function (request, response) {
-		var range = getTimeRange(request);
-    var cql = "select * from todmorden where sensor_name = ? and reading_time >= '"+range.from+"' and reading_time <= '"+range.to+"' ALLOW FILTERING";
-    client.execute(cql, [request.params.arg0], function(err, result){
-        if (err) {
-            response.send(err);
-        } else {
-            response.send(result);
-        }
+    var range = getTimeRange(request);
+    var cql_numeric = "select * from todmorden_numeric where sensor_name = ? and reading_time >= '"+range.from+"' and reading_time <= '"+range.to+"' ALLOW FILTERING";
+    var cql_text = "select * from todmorden_text where sensor_name = ? and reading_time >= '"+range.from+"' and reading_time <= '"+range.to+"' ALLOW FILTERING";
+    client.execute(cql_numeric, [request.params.arg0], function(numeric_err, numeric_result) {
+    	client.execute(cql_text, [request.params.arg0], function(text_err, text_result){
+	    if (numeric_err || text_err) {
+                response.send(numeric_err + text_err);        
+            } else {
+                response.send(numeric_result.rows.concat(text_result.rows));
+            }
+	});
     });
 });
 
