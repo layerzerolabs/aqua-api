@@ -2,11 +2,18 @@ var express = require('express')
  , url = require("url")
  , bodyParser = require("body-parser")
  , swagger = require("swagger-node-express")
- , cql = require('node-cassandra-cql');
+ , cql = require('node-cassandra-cql')
+ , url = require('url');
 
 var app = express();
-
+var allowCrossDomain = function(req, res, next) {
+    res.header('Access-Control-Allow-Origin', "*");
+    res.header('Access-Control-Allow-Methods', 'GET');
+    res.header('Access-Control-Allow-Headers', 'Content-Type');
+    next();
+};
 app.use(bodyParser.json());
+app.use(allowCrossDomain);
 
 // Couple the application to the Swagger module.
 swagger.setAppHandler(app);
@@ -30,17 +37,6 @@ swagger.addModels({
 	},	
 });
 
-var allowCrossDomain = function(req, res, next) {
-    res.header('Access-Control-Allow-Origin', "*");
-    res.header('Access-Control-Allow-Methods', 'GET');
-    res.header('Access-Control-Allow-Headers', 'Content-Type');
-    next();
-};
-
-app.use(allowCrossDomain);
-
-var basePath = 'saltmarsh.webarch.net:8003';
-
 var client = new cql.Client({
     hosts: ['localhost'],
     keyspace: 'aquaponics'
@@ -48,41 +44,67 @@ var client = new cql.Client({
 
 var getAll = {
 	'spec': {
-		    "description" : "Get all sensor data",
-		    "path" : "/todmorden/all",
-		    "notes" : "Returns all sensor data",
-		    "summary" : "Get all sensor data",
-                    "method": "GET",
-	/*	    "parameters" : [
-			swagger.pathParam("from", "Date/time from", "timestamp"),
-			swagger.pathParam("to", "Date/time to", "timestamp"),
-                    ],
-        */
-		    "type" : "Reading",
-		    "errorResponses" : [
-			swagger.errors.invalid('from'), 
-			swagger.errors.invalid('to'),
-		    ],
-         
-		    "nickname" : "getAll"
+        "description" : "Get all sensor data",
+	    "path" : "/todmorden/all",
+	    "notes" : "Returns all sensor data",
+	    "summary" : "Get all sensor data",
+                "method": "GET",
+	    "parameters" : [{
+	        "paramType": "query",
+		    "name": "from",
+		    "required": false,
+		    "type": "string",
+		    "description": "Start date",
+		    "format": "date",
+         }, {
+	        "paramType": "query",
+		    "name": "to",
+		    "required": false,
+		    "type": "string",
+		    "description": "End date",
+		    "format": "date", 
+         }, {
+	        "paramType": "query",
+		    "name":  "limit",
+		    "required": false,
+		    "type": "integer",
+		    "description": "How many records to return (blank = all)", 
+         }],
+	    "type" : "Reading",
+	    "errorResponses" : [
+		    swagger.errors.invalid('from'), 
+		    swagger.errors.invalid('to'),
+	    ],
+     
+	    "nickname" : "getAll"
 	},
-        action:  function (request, response) {
-		    var cql_numeric = "select sensor_name, reading_time, reading_value from todmorden_numeric where sensor_name = 'Light' order by reading_time desc limit 10";
-		    var cql_text = "select sensor_name, reading_time, reading_value from todmorden_text where sensor_name = 'Light' order by reading_time desc limit 10"; 
-		    // where reading_time >= '"+range.from+"' and reading_time <= '"+range.to+"' ALLOW FILTERING";
-		    //var range = getTimeRange(request);
-		    //if (!range) {
-				
-		    //}
-		    client.execute(cql_numeric, [request.params.arg0], function(numeric_err, numeric_result) {
-			client.execute(cql_text, [request.params.arg0], function(text_err, text_result){
-			    if (numeric_err || text_err) {
-				throw swagger.errors.notFound('readings');        
-			    } else {
-				response.send(numeric_result.rows.concat(text_result.rows));
-			    }
-			});
-		    });
+    action:  function (request, response) {
+    	var url_parts = url.parse(request.url, true);
+    	var qs = url_parts.query;
+        var range = getTimeRange(qs);
+        var limit = qs.limit;    
+        // get sensor names
+        var cql_names_numeric = "select distinct sensor_name from todmorden_numeric";
+        var cql_names_text = "select distinct sensor_name from todmorden_text";
+        client.execute(cql_names_numeric, function(numeric_err, numeric_result) {
+	        client.execute(cql_names_text, function(text_err, text_result){
+	            if (numeric_err || text_err) {
+		            throw swagger.errors.notFound('sensor names');        
+	            } else {
+		            var cql_numeric = buildCQLAll('todmorden_numeric', numeric_result, range, limit);
+                    var cql_text = buildCQLAll('todmorden_text', text_result, range, limit);
+                    client.execute(cql_numeric, function(numeric_err, numeric_result) {
+	                    client.execute(cql_text, function(text_err, text_result){
+	                        if (numeric_err || text_err) {
+		                        throw swagger.errors.notFound('readings');        
+	                        } else {
+		                        response.send(numeric_result.rows.concat(text_result.rows));
+	                        }
+	                    });
+                    });
+	            }
+	        });
+        });
 	}	
 };
 
@@ -101,15 +123,38 @@ var getAll = {
     });
 }); */
 
-function getTimeRange(request) {
-	var url = require('url');
-	var url_parts = url.parse(request.url, true);
-	if (typeof url_parts.query.from === 'undefined' 
-           || typeof url_parts.query.to === 'undefined') {
+
+function buildCQLAll(table, sensor_names_result, range, limit) {
+    console.log(limit);
+    var sensor_names = parseSensorNames(sensor_names_result);
+    var cql = "select sensor_name, reading_time, reading_value from "+table+" where sensor_name in ("+sensor_names+")";
+    if (range) {
+        cql += " and reading_time >= '"+range.from+"' and reading_time <= '"+range.to+"'";
+    }
+    cql +=" order by reading_time desc ";
+    if (limit) {
+        cql +=" limit "+limit;
+    }
+    cql += " ALLOW FILTERING"; 
+    return cql;
+}
+
+function parseSensorNames(sensor_names_result) {
+    var names = [];
+    var rows = sensor_names_result.rows;
+    for (var i = 0; i < rows.length; i++ ) {
+        names.push("'"+rows[i].sensor_name+"'");
+    }
+    return names.join();
+};
+
+function getTimeRange(qs) {
+	if (typeof qs.from === 'undefined' 
+           || typeof qs.to === 'undefined') {
 		return false;	
 	}
-	var from_array = url_parts.query.from.split('/');	
-	var to_array = url_parts.query.to.split('/');
+	var from_array = qs.from.split('/');	
+	var to_array = qs.to.split('/');
 	var from;
 	var to;
 	if (from_array.length !== 3) {
