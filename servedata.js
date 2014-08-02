@@ -91,8 +91,10 @@ var getAll = {
 	            if (numeric_err || text_err) {
 		            throw swagger.errors.notFound('sensor names');        
 	            } else {
-		            var cql_numeric = buildCQLAll('todmorden_numeric', numeric_result, range, limit);
-                    var cql_text = buildCQLAll('todmorden_text', text_result, range, limit);
+                    var sensor_names_numeric = parseSensorNames(numeric_result);
+                    var sensor_names_text = parseSensorNames(text_result);
+		            var cql_numeric = buildCQL('todmorden_numeric', sensor_names_numeric, range, limit);
+                    var cql_text = buildCQL('todmorden_text', sensor_names_text, range, limit);
                     client.execute(cql_numeric, function(numeric_err, numeric_result) {
 	                    client.execute(cql_text, function(text_err, text_result){
 	                        if (numeric_err || text_err) {
@@ -108,25 +110,9 @@ var getAll = {
 	}	
 };
 
-/*app.get("/todmorden/:arg0", function (request, response) {
-    var range = getTimeRange(request);
-    var cql_numeric = "select * from todmorden_numeric where sensor_name = ? and reading_time >= '"+range.from+"' and reading_time <= '"+range.to+"' ALLOW FILTERING";
-    var cql_text = "select * from todmorden_text where sensor_name = ? and reading_time >= '"+range.from+"' and reading_time <= '"+range.to+"' ALLOW FILTERING";
-    client.execute(cql_numeric, [request.params.arg0], function(numeric_err, numeric_result) {
-    	client.execute(cql_text, [request.params.arg0], function(text_err, text_result){
-	    if (numeric_err || text_err) {
-                response.send(numeric_err + text_err);        
-            } else {
-                response.send(numeric_result.rows.concat(text_result.rows));
-            }
-	});
-    });
-}); */
 
 
-function buildCQLAll(table, sensor_names_result, range, limit) {
-    console.log(limit);
-    var sensor_names = parseSensorNames(sensor_names_result);
+function buildCQL(table, sensor_names, range, limit) {
     var cql = "select sensor_name, reading_time, reading_value from "+table+" where sensor_name in ("+sensor_names+")";
     if (range) {
         cql += " and reading_time >= '"+range.from+"' and reading_time <= '"+range.to+"'";
