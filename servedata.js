@@ -89,18 +89,14 @@ var getAll = {
     action:  function (request, response) { 
         var params = parseRequest(request); 
         // get sensor names
-        var cql_names_numeric = "select distinct sensor_name from todmorden_numeric";
-        var cql_names_text = "select distinct sensor_name from todmorden_text";
-        client.execute(cql_names_numeric, function(numeric_err, numeric_result) {
-	        client.execute(cql_names_text, function(text_err, text_result){
-	            if (numeric_err || text_err) {
-		            throw swagger.errors.notFound('sensor names');        
-	            } else {
-                    var sensor_names_numeric = parseSensorNames(numeric_result);
-                    var sensor_names_text = parseSensorNames(text_result);
-		            getAndSendData(sensor_names_numeric, sensor_names_text, params, response);
-	            }
-	        });
+        var cql_names = "select distinct sensor_name from todmorden";
+        client.execute(cql_names, function(err, result) {
+            if (err) {
+	            throw swagger.errors.notFound('sensor names');        
+            } else {
+                var sensor_names = parseSensorNames(result);
+	            getAndSendData(sensor_names, params, response);
+            }
         });
 	}	
 };
@@ -158,9 +154,8 @@ var getSensorData = {
     action:  function (request, response) { 
         var sensor_name = request.params.sensor_name;
         var params = parseRequest(request); 
-        var sensor_names_numeric = "'"+sensor_name+"'";
-        var sensor_names_text = "'"+sensor_name+"'";
-        getAndSendData(sensor_names_numeric, sensor_names_text, params, response);
+        var sensor_names = "'"+sensor_name+"'";
+        getAndSendData(sensor_names, params, response);
 	}	
 };
 
@@ -174,22 +169,19 @@ function parseRequest(request) {
     }
 }
 
-function getAndSendData(sensor_names_numeric, sensor_names_text, params, response) {
-    var cql_numeric = buildCQL('todmorden_numeric', sensor_names_numeric, params.range, params.limit);
-    var cql_text = buildCQL('todmorden_text', sensor_names_text, params.range, params.limit);
-    client.execute(cql_numeric, function(numeric_err, numeric_result) {
-        client.execute(cql_text, function(text_err, text_result){
-            if (numeric_err || text_err) {
-                throw swagger.errors.notFound('readings');        
-            } else {
-                response.send(numeric_result.rows.concat(text_result.rows));
-            }
-        });
+function getAndSendData(sensor_names, params, response) {
+    var cql = buildCQL(sensor_names, params.range, params.limit);
+    client.execute(cql, function(err, result) {
+        if (err) {
+            throw swagger.errors.notFound('readings');        
+        } else {
+            response.send(result.rows);
+        }
     });
 }
 
-function buildCQL(table, sensor_names, range, limit) {
-    var cql = "select sensor_name, reading_time, reading_value from "+table+" where sensor_name in ("+sensor_names+")";
+function buildCQL(sensor_names, range, limit) {
+    var cql = "select sensor_name, reading_time, reading_value from todmorden where sensor_name in ("+sensor_names+")";
     if (range) {
         cql += " and reading_time >= '"+range.from+"' and reading_time <= '"+range.to+"'";
     }
