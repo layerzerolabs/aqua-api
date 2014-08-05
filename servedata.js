@@ -3,7 +3,8 @@ var express = require('express')
  , bodyParser = require("body-parser")
  , swagger = require("swagger-node-express")
  , cql = require('node-cassandra-cql')
- , url = require('url');
+ , url = require('url')
+ , param = require("./node_modules/swagger-node-express/lib/paramTypes.js");
 
 var app = express();
 var allowCrossDomain = function(req, res, next) {
@@ -25,7 +26,11 @@ swagger.addModels({
 	        "properties": {
 			"sensor_name": {
 		  		"type": "string",
-		  		"description": "Source of the message (e.g. 'Water Temperature', or 'system' if it is a system message)"
+		  		"description": "Source of the message (e.g. 'Water Temperature', or 'system' if it is a system message)",
+		  		"enum": [
+		  		    "system",
+		  		    "Light",
+		  		]
 			}, "reading_time": {
 				"type": "dateTime",
 				"description": "Date and time the message was created"
@@ -48,7 +53,7 @@ var getAll = {
 	    "path" : "/todmorden/all",
 	    "notes" : "Returns all sensor data",
 	    "summary" : "Get all sensor data",
-                "method": "GET",
+         "method": "GET",
 	    "parameters" : [{
 	        "paramType": "query",
 		    "name": "from",
@@ -70,7 +75,10 @@ var getAll = {
 		    "type": "integer",
 		    "description": "How many records to return (blank = all)", 
          }],
-	    "type" : "Reading",
+        "type" : "array",
+        "items": {
+          $ref: "Reading"
+        },
 	    "errorResponses" : [
 		    swagger.errors.invalid('from'), 
 		    swagger.errors.invalid('to'),
@@ -78,11 +86,8 @@ var getAll = {
      
 	    "nickname" : "getAll"
 	},
-    action:  function (request, response) {
-    	var url_parts = url.parse(request.url, true);
-    	var qs = url_parts.query;
-        var range = getTimeRange(qs);
-        var limit = qs.limit;    
+    action:  function (request, response) { 
+        var params = parseRequest(request); 
         // get sensor names
         var cql_names_numeric = "select distinct sensor_name from todmorden_numeric";
         var cql_names_text = "select distinct sensor_name from todmorden_text";
@@ -93,24 +98,95 @@ var getAll = {
 	            } else {
                     var sensor_names_numeric = parseSensorNames(numeric_result);
                     var sensor_names_text = parseSensorNames(text_result);
-		            var cql_numeric = buildCQL('todmorden_numeric', sensor_names_numeric, range, limit);
-                    var cql_text = buildCQL('todmorden_text', sensor_names_text, range, limit);
-                    client.execute(cql_numeric, function(numeric_err, numeric_result) {
-	                    client.execute(cql_text, function(text_err, text_result){
-	                        if (numeric_err || text_err) {
-		                        throw swagger.errors.notFound('readings');        
-	                        } else {
-		                        response.send(numeric_result.rows.concat(text_result.rows));
-	                        }
-	                    });
-                    });
+		            getAndSendData(sensor_names_numeric, sensor_names_text, params, response);
 	            }
 	        });
         });
 	}	
 };
 
+var getSensorData = {
+	'spec': {
+        "description" : "Get data from single sensor",
+	    "path" : "/todmorden/{sensor_name}",
+	    "notes" : "Returns sensor data",
+	    "summary" : "Get data from single sensor",
+        "method": "GET",
+	    "parameters" : [
+        {
+            "name": "sensor_name",
+            "description": "Sensor name",
+            "required": true,
+            "type": "enum",
+            "paramType": "path"
+        }
+        
+        
+      //param.path("sensor_name", "Sensor name", "string", true, ["system", "Light"])
+        ,{
+	        "paramType": "query",
+		    "name": "from",
+		    "required": false,
+		    "type": "string",
+		    "description": "Start date",
+		    "format": "date",
+         }, {
+	        "paramType": "query",
+		    "name": "to",
+		    "required": false,
+		    "type": "string",
+		    "description": "End date",
+		    "format": "date", 
+         }, {
+	        "paramType": "query",
+		    "name":  "limit",
+		    "required": false,
+		    "type": "integer",
+		    "description": "How many records to return (blank = all)", 
+         }],
+        "type" : "array",
+        "items": {
+          $ref: "Reading"
+        },
+	    "errorResponses" : [
+		    swagger.errors.invalid('from'), 
+		    swagger.errors.invalid('to'),
+	    ],
+     
+	    "nickname" : "getSensorData"
+	},
+    action:  function (request, response) { 
+        var sensor_name = request.params.sensor_name;
+        var params = parseRequest(request); 
+        var sensor_names_numeric = "'"+sensor_name+"'";
+        var sensor_names_text = "'"+sensor_name+"'";
+        getAndSendData(sensor_names_numeric, sensor_names_text, params, response);
+	}	
+};
 
+
+function parseRequest(request) {
+	var url_parts = url.parse(request.url, true);
+	var qs = url_parts.query;
+	return {
+        'range': getTimeRange(qs),
+        'limit': qs.limit,  
+    }
+}
+
+function getAndSendData(sensor_names_numeric, sensor_names_text, params, response) {
+    var cql_numeric = buildCQL('todmorden_numeric', sensor_names_numeric, params.range, params.limit);
+    var cql_text = buildCQL('todmorden_text', sensor_names_text, params.range, params.limit);
+    client.execute(cql_numeric, function(numeric_err, numeric_result) {
+        client.execute(cql_text, function(text_err, text_result){
+            if (numeric_err || text_err) {
+                throw swagger.errors.notFound('readings');        
+            } else {
+                response.send(numeric_result.rows.concat(text_result.rows));
+            }
+        });
+    });
+}
 
 function buildCQL(table, sensor_names, range, limit) {
     var cql = "select sensor_name, reading_time, reading_value from "+table+" where sensor_name in ("+sensor_names+")";
@@ -167,6 +243,7 @@ function nextDayString(date_obj) {
 	return date_obj.getFullYear()+'-'+(date_obj.getMonth() + 1)+'-'+date_obj.getDate();
 }
 swagger.addGet(getAll);
+swagger.addGet(getSensorData    );
 swagger.configure("http://saltmarsh.webarch.net:8003", "0.1");
 app.use(express.static(__dirname + '/node_modules/swagger-node-express/swagger-ui/'));
 app.listen(8003);
