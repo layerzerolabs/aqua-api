@@ -104,21 +104,17 @@ var getAll = {
 var getSensorData = {
 	'spec': {
         "description" : "Get data from single sensor",
-	    "path" : "/todmorden/{sensor_name}",
+	    "path" : "/todmorden",
 	    "notes" : "Returns sensor data",
 	    "summary" : "Get data from single sensor",
         "method": "GET",
 	    "parameters" : [
-        {
-            "name": "sensor_name",
-            "description": "Sensor name",
-            "required": true,
-            "type": "enum",
-            "paramType": "path"
-        }
-        
-        
-      //param.path("sensor_name", "Sensor name", "string", true, ["system", "Light"])
+            param.query("data", "Data", "string", true, [
+                "Air Pump 1 Current",
+                "Water Pump Current",
+                "pHradio",
+                "Valve Messages",
+            ])
         ,{
 	        "paramType": "query",
 		    "name": "from",
@@ -152,7 +148,7 @@ var getSensorData = {
 	    "nickname" : "getSensorData"
 	},
     action:  function (request, response) { 
-        var sensor_name = request.params.sensor_name;
+        var sensor_name = url.parse(request.url,true).query["data"];
         var params = parseRequest(request); 
         var sensor_names = "'"+sensor_name+"'";
         getAndSendData(sensor_names, params, response);
