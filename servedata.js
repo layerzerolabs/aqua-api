@@ -21,24 +21,20 @@ swagger.setAppHandler(app);
 
 swagger.addModels({
 	"Reading":{
-      		"id":"Reading",
-      		"required": ["sensor_name", "reading_time", "reading_value"],
-	        "properties": {
+  		"id":"Reading",
+  		"required": ["sensor_name", "reading_time", "reading_value"],
+        "properties": {
 			"sensor_name": {
 		  		"type": "string",
 		  		"description": "Source of the message (e.g. 'Water Temperature', or 'system' if it is a system message)",
-		  		"enum": [
-		  		    "system",
-		  		    "Light",
-		  		]
 			}, "reading_time": {
 				"type": "dateTime",
 				"description": "Date and time the message was created"
 			}, "reading_value": {
 				"type": "string",
 				"description": "Content of the message (e.g. '22.6' or 'Reset triggered')"
-			}
-		}
+			},
+		},
 	},	
 });
 
@@ -49,10 +45,10 @@ var client = new cql.Client({
 
 var getAll = {
 	'spec': {
-        "description" : "Get all sensor data",
+        "description" : "Get all data",
 	    "path" : "/todmorden/all",
-	    "notes" : "Returns all sensor data",
-	    "summary" : "Get all sensor data",
+	    "notes" : "Returns all data",
+	    "summary" : "Get all data",
          "method": "GET",
 	    "parameters" : [{
 	        "paramType": "query",
@@ -101,15 +97,15 @@ var getAll = {
 	}	
 };
 
-var getSensorData = {
+var getByCategory = {
 	'spec': {
-        "description" : "Get data from single sensor",
+        "description" : "Get data from single category",
 	    "path" : "/todmorden",
-	    "notes" : "Returns sensor data",
-	    "summary" : "Get data from single sensor",
+	    "notes" : "Returns data from specified category",
+	    "summary" : "Get data from single category",
         "method": "GET",
 	    "parameters" : [
-            param.query("data", "Data", "string", true, [
+            param.query("category", "Category", "string", true, [
                 "Air Pump 1 Current",
                 "Water Pump Current",
                 "pHradio",
@@ -145,10 +141,10 @@ var getSensorData = {
 		    swagger.errors.invalid('to'),
 	    ],
      
-	    "nickname" : "getSensorData"
+	    "nickname" : "getByCategory"
 	},
     action:  function (request, response) { 
-        var sensor_name = url.parse(request.url,true).query["data"];
+        var sensor_name = url.parse(request.url,true).query["category"];
         var params = parseRequest(request); 
         var sensor_names = "'"+sensor_name+"'";
         getAndSendData(sensor_names, params, response);
@@ -231,7 +227,7 @@ function nextDayString(date_obj) {
 	return date_obj.getFullYear()+'-'+(date_obj.getMonth() + 1)+'-'+date_obj.getDate();
 }
 swagger.addGet(getAll);
-swagger.addGet(getSensorData    );
+swagger.addGet(getByCategory);
 swagger.configure("http://saltmarsh.webarch.net:8003", "0.1");
 app.use(express.static(__dirname + '/node_modules/swagger-node-express/swagger-ui/'));
 app.listen(8003);
