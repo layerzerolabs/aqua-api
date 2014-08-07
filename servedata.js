@@ -167,9 +167,23 @@ function getAndSendData(sensor_names, params, response) {
         if (err) {
             throw swagger.errors.notFound('readings');        
         } else {
-            response.send(result.rows);
+            response.send(parseResult(result));
         }
     });
+}
+
+// parses what is returned from cassandra
+function parseResult(result) {
+    var data = [];
+    var rows = result.rows;
+    for (var i = 0; i < rows.length; i++ ) {
+        data.push({
+            'category': rows[i].sensor_name,
+            'time': rows[i].reading_time,
+            'value': rows[i].reading_value,
+        });
+    }
+    return data;
 }
 
 function buildCQL(sensor_names, range, limit) {
