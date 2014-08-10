@@ -256,4 +256,4 @@ swagger.addGet(getByCategory);
 swagger.configure(settings.base_url + ':' + settings.port, "0.1");
 app.use(express.static(__dirname + '/node_modules/swagger-node-express/swagger-ui/'));
 app.listen(settings.port);
-console.log("Aqua API Server running on "+setting.port);
+console.log("Aqua API Server running on "+settings.port);
