@@ -253,7 +253,7 @@ function nextDayString(date_obj) {
 }
 swagger.addGet(getAll);
 swagger.addGet(getByCategory);
-swagger.configure(settings.base_url, "0.1");
+swagger.configure(settings.base_url + ':' + settings.port, "0.1");
 app.use(express.static(__dirname + '/node_modules/swagger-node-express/swagger-ui/'));
-app.listen(8003);
-console.log("Aqua API Server running on 8003");
+app.listen(settings.port);
+console.log("Aqua API Server running on "+setting.port);
