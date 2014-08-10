@@ -117,9 +117,17 @@ var getByCategory = {
         "method": "GET",
 	    "parameters" : [
             param.query("category", "Category", "string", true, [
-                "Air Pump 1 Current",
+                "Air Temperature",
+                "Water Temperature",
+                "Light",
+                "pH",
+                "Digital Water Level",
                 "Water Pump Current",
-                "pHradio",
+                "Air Pump 1 Current",
+                "Air Pump 2 Current",
+                "Light_Voltage",
+                "pH_Voltage",
+                "System Messages",
                 "Valve Messages",
             ])
         ,{
