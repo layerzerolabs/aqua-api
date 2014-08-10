@@ -127,7 +127,7 @@ var getByCategory = {
                 "Air Pump 2 Current",
                 "Light_Voltage",
                 "pH_Voltage",
-                "System Messages",
+                "system",
                 "Valve Messages",
             ])
         ,{
