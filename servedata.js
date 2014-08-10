@@ -6,6 +6,17 @@ var express = require('express')
  , url = require('url')
  , param = require("./node_modules/swagger-node-express/lib/paramTypes.js");
 
+var settingsFile = './settings.js';
+try {
+    var settings = require(settingsFile);
+} catch(err) {
+    if (err.code == 'MODULE_NOT_FOUND') {
+        console.log("Unable to load settings file "+settingsFile);
+    } else {
+        console.log(err);
+    }
+    process.exit();
+}
 var app = express();
 var allowCrossDomain = function(req, res, next) {
     res.header('Access-Control-Allow-Origin', "*");
@@ -242,7 +253,7 @@ function nextDayString(date_obj) {
 }
 swagger.addGet(getAll);
 swagger.addGet(getByCategory);
-swagger.configure("http://saltmarsh.webarch.net:8003", "0.1");
+swagger.configure(settings.base_url, "0.1");
 app.use(express.static(__dirname + '/node_modules/swagger-node-express/swagger-ui/'));
 app.listen(8003);
 console.log("Aqua API Server running on 8003");
