@@ -58,7 +58,11 @@ var getAll = {
 	'spec': {
         "description" : "Get all data",
 	    "path" : "/todmorden/all",
-	    "notes" : "Returns all data",
+	    "notes" : "Returns all data from all sensors and all messages.\
+ Parameter dates are accepted in local time, data is returned in UTC.\
+ An optional limit is accepted and returns the most recent records.\
+ Data is measured for some sensors every second, and for others every 10 minutes.\
+ However data is only recorded on change, apart from at 00.05, when all data is recorded.",
 	    "summary" : "Get all data",
          "method": "GET",
 	    "parameters" : [{
@@ -66,14 +70,14 @@ var getAll = {
 		    "name": "from",
 		    "required": false,
 		    "type": "string",
-		    "description": "Start date",
+		    "description": "Start date - DD/MM/YYYY",
 		    "format": "date",
          }, {
 	        "paramType": "query",
 		    "name": "to",
 		    "required": false,
 		    "type": "string",
-		    "description": "End date",
+		    "description": "End date - DD/MM/YYYY",
 		    "format": "date", 
          }, {
 	        "paramType": "query",
@@ -97,26 +101,35 @@ var getAll = {
         var params = parseRequest(request); 
         // get sensor names
         var cql_names = "select distinct sensor_name from todmorden";
-        client.execute(cql_names, function(err, result) {
-            if (err) {
-	            throw swagger.errors.notFound('sensor names');        
-            } else {
-                var sensor_names = parseSensorNames(result);
-	            getAndSendData(sensor_names, params, response);
-            }
-        });
-	}	
+	try {
+		client.execute(cql_names, function(err, result) {
+		    if (err) {
+			    throw swagger.errors.notFound('sensor names');        
+		    } else {
+			var sensor_names = parseSensorNames(result);
+			    getAndSendData(sensor_names, params, response);
+		    }
+		});
+	} catch(e) {
+	        console.log('Error in sensor names query: '+e.message);
+		response.send('Error - see API log');
+        }	
+    }
 };
 
 var getByCategory = {
 	'spec': {
         "description" : "Get data from single category",
-	    "path" : "/todmorden",
-	    "notes" : "Returns data from specified category",
+	"path" : "/todmorden",
+	"notes" : "Returns data from specified category (sensor or message type)\
+ Parameter dates are accepted in local time, data is returned in UTC.\
+ An optional limit is accepted and returns the most recent records.\
+ Data is measured for some sensors every second, and for others every 10 minutes.\
+ However data is only recorded on change, apart from at 00.05, when all data is recorded.",
 	    "summary" : "Get data from single category",
         "method": "GET",
 	    "parameters" : [
-            param.query("category", "Category", "string", true, [
+            param.query("category", "Category (sensor or message)", "string", true, [
                 "Air Temperature",
                 "Water Temperature",
                 "Light",
@@ -135,14 +148,14 @@ var getByCategory = {
 		    "name": "from",
 		    "required": false,
 		    "type": "string",
-		    "description": "Start date",
+		    "description": "Start date - DD/MM/YYYY",
 		    "format": "date",
          }, {
 	        "paramType": "query",
 		    "name": "to",
 		    "required": false,
 		    "type": "string",
-		    "description": "End date",
+		    "description": "End date - DD/MM/YYYY",
 		    "format": "date", 
          }, {
 	        "paramType": "query",
@@ -166,7 +179,7 @@ var getByCategory = {
         var sensor_name = url.parse(request.url,true).query["category"];
         var params = parseRequest(request); 
         var sensor_names = "'"+sensor_name+"'";
-        getAndSendData(sensor_names, params, response);
+        	getAndSendData(sensor_names, params, response);
 	}	
 };
 
@@ -182,13 +195,18 @@ function parseRequest(request) {
 
 function getAndSendData(sensor_names, params, response) {
     var cql = buildCQL(sensor_names, params.range, params.limit);
-    client.execute(cql, function(err, result) {
-        if (err) {
-            throw swagger.errors.notFound('readings');        
-        } else {
-            response.send(parseResult(result));
-        }
-    });
+    try {
+	    client.execute(cql, function(err, result) {
+		if (err) {
+		    throw swagger.errors.notFound('readings');        
+		} else {
+		    response.send(parseResult(result));
+		}
+	    });
+    } catch (e) {
+	    console.log('Error in function getAndSendData: '+e.message);	
+	    response.send('Error - see API log');
+    }
 }
 
 // parses what is returned from cassandra
