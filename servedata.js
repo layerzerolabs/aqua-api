@@ -7,6 +7,7 @@ var express = require('express')
  , param = require("./node_modules/swagger-node-express/lib/paramTypes.js");
 
 var settingsFile = './settings.js';
+
 try {
     var settings = require(settingsFile);
 } catch(err) {
@@ -17,6 +18,7 @@ try {
     }
     process.exit();
 }
+
 var app = express();
 var allowCrossDomain = function(req, res, next) {
     res.header('Access-Control-Allow-Origin', "*");
@@ -24,6 +26,7 @@ var allowCrossDomain = function(req, res, next) {
     res.header('Access-Control-Allow-Headers', 'Content-Type');
     next();
 };
+
 app.use(bodyParser.json());
 app.use(allowCrossDomain);
 
@@ -31,22 +34,24 @@ app.use(allowCrossDomain);
 swagger.setAppHandler(app);
 
 swagger.addModels({
-	"Reading":{
-  		"id":"Reading",
-  		"required": ["sensor_name", "reading_time", "reading_value"],
-        "properties": {
-			"sensor_name": {
-		  		"type": "string",
-		  		"description": "Source of the message (e.g. 'Water Temperature', or 'system' if it is a system message)",
-			}, "reading_time": {
-				"type": "dateTime",
-				"description": "Date and time the message was created"
-			}, "reading_value": {
-				"type": "string",
-				"description": "Content of the message (e.g. '22.6' or 'Reset triggered')"
-			},
-		},
-	},	
+   "Reading":{
+      "id":"Reading",
+      "required": ["sensor_name", "reading_time", "reading_value"],
+      "properties": {
+         "sensor_name": {
+            "type": "string",
+            "description": "Source of the message (e.g. 'Water Temperature', or 'system' if it is a system message)",
+         }, 
+         "reading_time": {
+            "type": "dateTime",
+            "description": "Date and time the message was created"
+         }, 
+         "reading_value": {
+            "type": "string",
+            "description": "Content of the message (e.g. '22.6' or 'Reset triggered')"
+         },
+      },
+   },
 });
 
 var client = new cql.Client({
@@ -55,17 +60,17 @@ var client = new cql.Client({
 });
 
 var getAll = {
-	'spec': {
-        "description" : "Get all data",
-	    "path" : "/todmorden/all",
-	    "notes" : "Returns all data from all sensors and all messages.\
+   'spec': {
+         "description" : "Get all data",
+         "path" : "/todmorden/all",
+         "notes" : "Returns all data from all sensors and all messages.\
  Parameter dates are accepted in local time, data is returned in UTC.\
  An optional limit is accepted and returns the most recent records.\
  Data is measured for some sensors every second, and for others every 10 minutes.\
  However data is only recorded on change, apart from at 00.05, when all data is recorded.",
-	    "summary" : "Get all data",
+         "summary" : "Get all data",
          "method": "GET",
-	    "parameters" : [{
+         "parameters" : [{
 	        "paramType": "query",
 		    "name": "from",
 		    "required": false,
@@ -185,27 +190,27 @@ var getByCategory = {
 
 
 function parseRequest(request) {
-	var url_parts = url.parse(request.url, true);
-	var qs = url_parts.query;
-	return {
+   var url_parts = url.parse(request.url, true);
+   var qs = url_parts.query;
+   return {
         'range': getTimeRange(qs),
         'limit': qs.limit,  
-    }
+   }
 }
 
 function getAndSendData(sensor_names, params, response) {
     var cql = buildCQL(sensor_names, params.range, params.limit);
     try {
-	    client.execute(cql, function(err, result) {
-		if (err) {
-		    throw swagger.errors.notFound('readings');        
-		} else {
-		    response.send(parseResult(result));
-		}
-	    });
+      client.execute(cql, function(err, result) {
+      if (err) {
+         throw swagger.errors.notFound('readings');        
+      } else {
+         response.send(parseResult(result));
+      }
+      });
     } catch (e) {
-	    console.log('Error in function getAndSendData: '+e.message);	
-	    response.send('Error - see API log');
+         console.log('Error in function getAndSendData: '+e.message);	
+         response.send('Error - see API log');
     }
 }
 
