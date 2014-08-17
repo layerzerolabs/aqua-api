@@ -149,10 +149,10 @@ var getByCategory = {
                              [ 'Air Temperature',
                                'Water Temperature',
                                'Light',
-                                      'pH',
-                                           'Digital Water Level',
-                                                'Water Pump Current',
-                                                     'Air Pump 1 Current',
+                               'pH',
+                               'Digital Water Level',
+                               'Water Pump Current',
+                               'Air Pump 1 Current',
                                                           'Air Pump 2 Current',
                                                                'Light_Voltage',
                                                                     'pH_Voltage',
@@ -232,12 +232,12 @@ function getAndSendData(sensor_names, params, response) {
 // parses what is returned from cassandra
 function parseResult(rows) {
     var data = [];
-    
+    console.log(rows); 
     for (var i = 0; i < rows.length; i++ ) {
         data.push({
-            'category': rows[i][1],
-            'time': rows[i][2],
-            'value': rows[i][3],
+            'category': rows[i].sensor_name,
+            'time': rows[i].reading_time,
+            'value': rows[i].reading_value,
         });
     }
     return data;
