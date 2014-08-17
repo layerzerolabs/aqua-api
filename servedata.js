@@ -232,11 +232,11 @@ function getAndSendData(sensor_names, params, response) {
 // parses what is returned from cassandra
 function parseResult(rows) {
     var data = [];
-    console.log(rows); 
+    console.log(rows[0].reading_time); 
     for (var i = 0; i < rows.length; i++ ) {
         data.push({
             'category': rows[i].sensor_name,
-            'time': rows[i].reading_time,
+            'time': rows[i].reading_time.toString(),
             'value': rows[i].reading_value,
         });
     }
