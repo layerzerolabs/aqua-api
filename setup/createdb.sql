@@ -2,7 +2,7 @@ CREATE DATABASE readings;
 
 USE readings;
 
-CREATE TABLE todmordon(
+CREATE TABLE todmorden(
    id INT NOT NULL AUTO_INCREMENT, 
    PRIMARY KEY(id),
    sensor_name VARCHAR(30), 

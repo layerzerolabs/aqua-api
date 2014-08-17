@@ -1,4 +1,4 @@
 module.exports = {
-	base_url: 'http://incredibleaquagdn.no-ip.info',
-	port: 8003,
+   base_url: 'http://localhost',
+   port: 8003,
 };

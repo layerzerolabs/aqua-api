@@ -2,14 +2,16 @@ var express = require('express')
  , url = require("url")
  , bodyParser = require("body-parser")
  , swagger = require("swagger-node-express")
- , cql = require('node-cassandra-cql')
+ , mysql = require('mysql')
  , url = require('url')
- , param = require("./node_modules/swagger-node-express/lib/paramTypes.js");
 
 var settingsFile = './settings.js';
+var dbFile = './dbconf.js';
 
+//Doesn't require throw anyway?
 try {
     var settings = require(settingsFile);
+    var dbsettings = require(dbFile);
 } catch(err) {
     if (err.code == 'MODULE_NOT_FOUND') {
         console.log("Unable to load settings file "+settingsFile);
@@ -26,6 +28,10 @@ var allowCrossDomain = function(req, res, next) {
     res.header('Access-Control-Allow-Headers', 'Content-Type');
     next();
 };
+
+app.get('/settings.js', function(req, res){
+     res.sendfile('./client-settings.js');
+});
 
 app.use(bodyParser.json());
 app.use(allowCrossDomain);
@@ -53,10 +59,11 @@ swagger.addModels({
       },
    },
 });
-
-var client = new cql.Client({
-    hosts: ['localhost'],
-    keyspace: 'aquaponics'
+var connection = mysql.createConnection({
+         host     : dbsettings.host,
+         user     : dbsettings.user,
+         password : dbsettings.password,
+         database : dbsettings.database
 });
 
 var getAll = {
@@ -105,20 +112,20 @@ var getAll = {
     action:  function (request, response) { 
         var params = parseRequest(request); 
         // get sensor names
-        var cql_names = "select distinct sensor_name from todmorden";
-	try {
-		client.execute(cql_names, function(err, result) {
-		    if (err) {
-			    throw swagger.errors.notFound('sensor names');        
-		    } else {
-			var sensor_names = parseSensorNames(result);
-			    getAndSendData(sensor_names, params, response);
-		    }
-		});
-	} catch(e) {
-	        console.log('Error in sensor names query: '+e.message);
-		response.send('Error - see API log');
-        }	
+        var sql_names = "select distinct sensor_name from todmorden";
+        try {
+            connection.query(sql_names, function(err, rows, fields) {
+            if (err) {
+               throw swagger.errors.notFound('sensor names');        
+            } else {
+               var sensor_names = parseSensorNames(rows);
+               getAndSendData(sensor_names, params, response);
+            }
+         });
+         } catch(e) {
+            console.log('Error in sensor names query: '+e.message);
+            response.send('Error - see API log');
+        }
     }
 };
 
@@ -131,23 +138,30 @@ var getByCategory = {
  An optional limit is accepted and returns the most recent records.\
  Data is measured for some sensors every second, and for others every 10 minutes.\
  However data is only recorded on change, apart from at 00.05, when all data is recorded.",
-	    "summary" : "Get data from single category",
         "method": "GET",
-	    "parameters" : [
-            param.query("category", "Category (sensor or message)", "string", true, [
-                "Air Temperature",
-                "Water Temperature",
-                "Light",
-                "pH",
-                "Digital Water Level",
-                "Water Pump Current",
-                "Air Pump 1 Current",
-                "Air Pump 2 Current",
-                "Light_Voltage",
-                "pH_Voltage",
-                "system",
-                "Valve Messages",
-            ])
+        "parameters" : [
+            
+            { name: 'category',
+               description: 'Category (sensor or message)',
+               type: 'string',
+               required: true,
+                       enum: 
+                             [ 'Air Temperature',
+                               'Water Temperature',
+                               'Light',
+                                      'pH',
+                                           'Digital Water Level',
+                                                'Water Pump Current',
+                                                     'Air Pump 1 Current',
+                                                          'Air Pump 2 Current',
+                                                               'Light_Voltage',
+                                                                    'pH_Voltage',
+                                                                         'system',
+                                                                              'Valve Messages' ],
+                                                                                defaultValue: undefined,
+                                                                                  paramType: 'query' }
+
+           
         ,{
 	        "paramType": "query",
 		    "name": "from",
@@ -184,8 +198,8 @@ var getByCategory = {
         var sensor_name = url.parse(request.url,true).query["category"];
         var params = parseRequest(request); 
         var sensor_names = "'"+sensor_name+"'";
-        	getAndSendData(sensor_names, params, response);
-	}	
+         getAndSendData(sensor_names, params, response);
+    }
 };
 
 
@@ -200,12 +214,13 @@ function parseRequest(request) {
 
 function getAndSendData(sensor_names, params, response) {
     var cql = buildCQL(sensor_names, params.range, params.limit);
+    console.log('getAndSend: ' + cql);
     try {
-      client.execute(cql, function(err, result) {
+      connection.query(cql, function(err, rows, fields) {
       if (err) {
          throw swagger.errors.notFound('readings');        
       } else {
-         response.send(parseResult(result));
+         response.send(parseResult(rows));
       }
       });
     } catch (e) {
@@ -215,14 +230,14 @@ function getAndSendData(sensor_names, params, response) {
 }
 
 // parses what is returned from cassandra
-function parseResult(result) {
+function parseResult(rows) {
     var data = [];
-    var rows = result.rows;
+    
     for (var i = 0; i < rows.length; i++ ) {
         data.push({
-            'category': rows[i].sensor_name,
-            'time': rows[i].reading_time,
-            'value': rows[i].reading_value,
+            'category': rows[i][1],
+            'time': rows[i][2],
+            'value': rows[i][3],
         });
     }
     return data;
@@ -237,13 +252,15 @@ function buildCQL(sensor_names, range, limit) {
     if (limit) {
         cql +=" limit "+limit;
     }
-    cql += " ALLOW FILTERING"; 
+
+    console.log("SQL " + cql);
+    //cql += " ALLOW FILTERING"; 
     return cql;
 }
 
-function parseSensorNames(sensor_names_result) {
+function parseSensorNames(rows) {
     var names = [];
-    var rows = sensor_names_result.rows;
+    //var rows = sensor_names_result.rows;
     for (var i = 0; i < rows.length; i++ ) {
         names.push("'"+rows[i].sensor_name+"'");
     }
