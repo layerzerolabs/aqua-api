@@ -27,10 +27,12 @@ Any changes you make to the database config in those scripts must also be change
 $ npm install
 ```
 
+Edit client-settings.js with your web address and port
+
 ## test 
 
 ```
 $ npm test
 ```
-This will use the database config from dbconf.js
+Tests use the database config from dbconf.js
 
