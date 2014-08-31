@@ -3,7 +3,8 @@
 //in production
 //seperate to settings.js because that file uses requires()
 var settings = {
-   base_url: 'http://localhost',
+   base_url: 'http://saltmarsh.webarch.net',
    port: 8003,
 }
+module.exports = settings;
 

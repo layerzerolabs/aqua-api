@@ -5,7 +5,7 @@ var express = require('express')
  , mysql = require('mysql')
  , url = require('url')
 
-var settingsFile = './settings.js';
+var settingsFile = './client-settings.js';
 var dbFile = './dbconf.js';
 
 //Doesn't require throw anyway?
@@ -153,13 +153,13 @@ var getByCategory = {
                                'Digital Water Level',
                                'Water Pump Current',
                                'Air Pump 1 Current',
-                                                          'Air Pump 2 Current',
-                                                               'Light_Voltage',
-                                                                    'pH_Voltage',
-                                                                         'system',
-                                                                              'Valve Messages' ],
-                                                                                defaultValue: undefined,
-                                                                                  paramType: 'query' }
+                               'Air Pump 2 Current',
+                               'Light_Voltage',
+                               'pH_Voltage',
+                               'system',
+                               'Valve Messages' ],
+                       defaultValue: undefined,
+                       paramType: 'query' }
 
            
         ,{
@@ -229,16 +229,17 @@ function getAndSendData(sensor_names, params, response) {
     }
 }
 
-// parses what is returned from cassandra
+// parses what is returned from db
 function parseResult(rows) {
     var data = [];
-    console.log(rows[0].reading_time); 
-    for (var i = 0; i < rows.length; i++ ) {
-        data.push({
-            'category': rows[i].sensor_name,
-            'time': rows[i].reading_time.toString(),
-            'value': rows[i].reading_value,
-        });
+    if (rows && rows !== []) {
+        for (var i = 0; i < rows.length; i++ ) {
+            data.push({
+                'category': rows[i].sensor_name,
+                'time': rows[i].reading_time.toString(),
+                'value': rows[i].reading_value,
+            });
+        } 
     }
     return data;
 }
@@ -252,9 +253,6 @@ function buildCQL(sensor_names, range, limit) {
     if (limit) {
         cql +=" limit "+limit;
     }
-
-    console.log("SQL " + cql);
-    //cql += " ALLOW FILTERING"; 
     return cql;
 }
 

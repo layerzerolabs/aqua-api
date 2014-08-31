@@ -1,18 +1,15 @@
 var test = require("tap").test
 var mysql = require('mysql');
-var host = 'localhost';
-var user = 'devel';
-var password = 'letme!n';
-var database = 'readings';
+var config = require('../dbconf.js');
 
 test('validate database connection', function(t) {
    t.plan(2);
    t.ok('This runs');
    var connection = mysql.createConnection({
-      host     : host,
-      user     : user,
-      password : password,
-      database : database
+      host     : config.host,
+      user     : config.user,
+      password : config.password,
+      database : config.database
    });
 
   
@@ -30,15 +27,15 @@ test('validate database connection', function(t) {
 test('validate table exists', function(t) {
    t.plan(5);
    var connection = mysql.createConnection({
-      host     : host,
-      user     : user,
-      password : password,
-      database : database
+      host     : config.host,
+      user     : config.user,
+      password : config.password,
+      database : config.database
    });
 
    connection.connect();
 
-   connection.query('SELECT * from todmordon;', function(err, rows, fields) {
+   connection.query('SELECT * from todmorden;', function(err, rows, fields) {
         if (err) throw err;
           t.ok('feeling grovy');
           t.equal(fields[0].name, 'id');
