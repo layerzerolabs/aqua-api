@@ -59,7 +59,7 @@ swagger.addModels({
       },
    },
 });
-var connection = mysql.createConnection({
+var pool = mysql.createPool({
          host     : dbsettings.host,
          user     : dbsettings.user,
          password : dbsettings.password,
@@ -114,7 +114,7 @@ var getAll = {
         // get sensor names
         var sql_names = "select distinct sensor_name from todmorden";
         try {
-            connection.query(sql_names, function(err, rows, fields) {
+            pool.query(sql_names, function(err, rows, fields) {
             if (err) {
                throw swagger.errors.notFound('sensor names');        
             } else {
@@ -149,15 +149,19 @@ var getByCategory = {
                              [ 'Air Temperature',
                                'Water Temperature',
                                'Light',
+			       'Humidity',
                                'pH',
+			       'pHmV',
                                'Digital Water Level',
                                'Water Pump Current',
                                'Air Pump 1 Current',
                                'Air Pump 2 Current',
                                'Light_Voltage',
+                               'Humidity_Voltage',
                                'pH_Voltage',
                                'system',
-                               'Valve Messages' ],
+                               'Valve Messages',
+			       'Valve Mode' ],
                        defaultValue: undefined,
                        paramType: 'query' }
 
@@ -216,7 +220,7 @@ function getAndSendData(sensor_names, params, response) {
     var cql = buildCQL(sensor_names, params.range, params.limit);
     console.log('getAndSend: ' + cql);
     try {
-      connection.query(cql, function(err, rows, fields) {
+      pool.query(cql, function(err, rows, fields) {
       if (err) {
          throw swagger.errors.notFound('readings');        
       } else {
