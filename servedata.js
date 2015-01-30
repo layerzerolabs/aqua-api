@@ -4,7 +4,7 @@ var express = require('express')
  , swagger = require("swagger-node-express")
  , mysql = require('mysql')
  , url = require('url')
-
+ , dataWriter = require('./dataWriter')
 var settingsFile = './client-settings.js';
 var dbFile = './dbconf.js';
 
@@ -206,6 +206,72 @@ var getByCategory = {
     }
 };
 
+var postReading = {
+	'spec': {
+        "description" : "Post a reading in a single category",
+	"path" : "/todmorden",
+	"notes" : "Records data from specified category (sensor or message type)\
+ Date is accepted in local time.",
+        "method": "POST",
+        "parameters" : [
+            
+            { name: 'category',
+               description: 'Category (sensor or message)',
+               type: 'string',
+               required: true,
+                       enum: 
+                             [ 'Air Temperature',
+                               'Water Temperature',
+                               'Light',
+			                   'Humidity',
+                               'pH',
+			                   'pHmV',
+                               'Digital Water Level',
+                               'Water Pump Current',
+                               'Air Pump 1 Current',
+                               'Air Pump 2 Current',
+                               'Light_Voltage',
+                               'Humidity_Voltage',
+                               'pH_Voltage',
+                               'system',
+                               'Valve Messages',
+			                   'Valve Mode' ],
+                       defaultValue: undefined,
+                       paramType: 'body' }
+
+           
+        ,{
+	        "paramType": "body",
+		    "name": "date",
+		    "required": true,
+		    "type": "string",
+		    "description": "Reading date & time - hh:mm:ss DD/MM/YYYY",
+		    "format": "date-time",
+         },{
+	        "paramType": "body",
+		    "name": "reading",
+		    "required": true,
+		    "type": "string",
+		    "description": "Reading from the sensor without units",
+         }],
+	    "errorResponses" : [
+		    swagger.errors.invalid('date'), 
+	    ],
+     
+	    "nickname" : "postReading"
+	},
+    action:  function (request, response) { 
+        dataWriter.createReading(request.body, function (err){
+          if (err){
+            console.log('Can\'t create reading: '+e.message);
+            response.status(400);
+            response.send('Error - see API log');
+          } else {
+            response.status(201);
+          }
+        });
+    }
+};
 
 function parseRequest(request) {
    var url_parts = url.parse(request.url, true);
@@ -229,7 +295,7 @@ function getAndSendData(sensor_names, params, response) {
       });
     } catch (e) {
          console.log('Error in function getAndSendData: '+e.message);	
-         response.send('Error - see API log');
+
     }
 }
 
@@ -303,6 +369,7 @@ function nextDayString(date_obj) {
 }
 swagger.addGet(getAll);
 swagger.addGet(getByCategory);
+swagger.addPost(postReading);
 swagger.configure(settings.base_url + ':' + settings.port, "0.1");
 app.use(express.static(__dirname + '/node_modules/swagger-node-express/swagger-ui/'));
 app.listen(settings.port);

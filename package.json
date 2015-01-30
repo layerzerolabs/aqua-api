@@ -14,7 +14,8 @@
   },
   "devDependencies": {},
   "scripts": {
-    "test": "tap tests/*.js"
+    "test": "tap tests/*.js",
+    "start": "node servedata.js"
   },
   "repository": {
     "type": "git",

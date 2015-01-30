@@ -3,7 +3,7 @@
 //in production
 //seperate to settings.js because that file uses requires()
 var settings = {
-   base_url: 'http://your.public.address',
+   base_url: 'http://localhost',
    port: 8003,
 }
 module.exports = settings;
