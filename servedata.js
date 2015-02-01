@@ -2,24 +2,13 @@ var express = require('express')
  , url = require("url")
  , bodyParser = require("body-parser")
  , swagger = require("swagger-node-express")
- , mysql = require('mysql')
- , url = require('url')
- , dataWriter = require('./dataWriter')
-var settingsFile = './client-settings.js';
-var dbFile = './dbconf.js';
-
-//Doesn't require throw anyway?
-try {
-    var settings = require(settingsFile);
-    var dbsettings = require(dbFile);
-} catch(err) {
-    if (err.code == 'MODULE_NOT_FOUND') {
-        console.log("Unable to load settings file "+settingsFile);
-    } else {
-        console.log(err);
-    }
-    process.exit();
-}
+ , dataAccess = require('./dataAccess')
+ , models = require('./models')
+ , SwaggerValidator = require('swagger-model-validator')
+ , validator = new SwaggerValidator(swagger)
+ , settings = require('./client-settings.js')
+ , queryString = require('qs');
+   
 
 var app = express();
 var allowCrossDomain = function(req, res, next) {
@@ -29,7 +18,9 @@ var allowCrossDomain = function(req, res, next) {
     next();
 };
 
-app.get('/settings.js', function(req, res){
+// Settings file is shared between this app and the swagger ui
+// so this serves it publicly
+app.get('/client-settings.js', function(req, res){
      res.sendfile('./client-settings.js');
 });
 
@@ -39,37 +30,25 @@ app.use(allowCrossDomain);
 // Couple the application to the Swagger module.
 swagger.setAppHandler(app);
 
-swagger.addModels({
-   "Reading":{
-      "id":"Reading",
-      "required": ["sensor_name", "reading_time", "reading_value"],
-      "properties": {
-         "sensor_name": {
-            "type": "string",
-            "description": "Source of the message (e.g. 'Water Temperature', or 'system' if it is a system message)",
-         }, 
-         "reading_time": {
-            "type": "dateTime",
-            "description": "Date and time the message was created"
-         }, 
-         "reading_value": {
-            "type": "string",
-            "description": "Content of the message (e.g. '22.6' or 'Reset triggered')"
-         },
-      },
-   },
-});
-var pool = mysql.createPool({
-         host     : dbsettings.host,
-         user     : dbsettings.user,
-         password : dbsettings.password,
-         database : dbsettings.database
-});
+var getReadings = function(request, response) {
+    var options = queryString.parse(request.query);
+    console.log('options are', options, 'ok');
+    dataAccess.getReadings(options, function (err, results){
+      if (err){
+        console.log('Can\'t get reading: '+err.message);
+        response.status(400);
+        response.send(err);
+      } else {
+        response.status(200);
+        response.send(results);
+      }
+    });
+};
 
 var getAll = {
    'spec': {
          "description" : "Get all data",
-         "path" : "/todmorden/all",
+         "path" : "/todmorden/all/",
          "notes" : "Returns all data from all sensors and all messages.\
  Parameter dates are accepted in local time, data is returned in UTC.\
  An optional limit is accepted and returns the most recent records.\
@@ -82,14 +61,14 @@ var getAll = {
 		    "name": "from",
 		    "required": false,
 		    "type": "string",
-		    "description": "Start date - DD/MM/YYYY",
+		    "description": "Start date - YYYY-MM-DD",
 		    "format": "date",
          }, {
 	        "paramType": "query",
 		    "name": "to",
 		    "required": false,
 		    "type": "string",
-		    "description": "End date - DD/MM/YYYY",
+		    "description": "End date - YYYY-MM-DD",
 		    "format": "date", 
          }, {
 	        "paramType": "query",
@@ -110,22 +89,7 @@ var getAll = {
 	    "nickname" : "getAll"
 	},
     action:  function (request, response) { 
-        var params = parseRequest(request); 
-        // get sensor names
-        var sql_names = "select distinct sensor_name from todmorden";
-        try {
-            pool.query(sql_names, function(err, rows, fields) {
-            if (err) {
-               throw swagger.errors.notFound('sensor names');        
-            } else {
-               var sensor_names = parseSensorNames(rows);
-               getAndSendData(sensor_names, params, response);
-            }
-         });
-         } catch(e) {
-            console.log('Error in sensor names query: '+e.message);
-            response.send('Error - see API log');
-        }
+        return getReadings(request, response);
     }
 };
 
@@ -199,10 +163,7 @@ var getByCategory = {
 	    "nickname" : "getByCategory"
 	},
     action:  function (request, response) { 
-        var sensor_name = url.parse(request.url,true).query["category"];
-        var params = parseRequest(request); 
-        var sensor_names = "'"+sensor_name+"'";
-         getAndSendData(sensor_names, params, response);
+        return getReadings(request, response);
     }
 };
 
@@ -210,49 +171,15 @@ var postReading = {
 	'spec': {
         "description" : "Post a reading in a single category",
 	"path" : "/todmorden",
-	"notes" : "Records data from specified category (sensor or message type)\
+	"notes" : "Records data in specified category (sensor or message type).\
  Date is accepted in local time.",
         "method": "POST",
-        "parameters" : [
-            
-            { name: 'category',
-               description: 'Category (sensor or message)',
-               type: 'string',
-               required: true,
-                       enum: 
-                             [ 'Air Temperature',
-                               'Water Temperature',
-                               'Light',
-			                   'Humidity',
-                               'pH',
-			                   'pHmV',
-                               'Digital Water Level',
-                               'Water Pump Current',
-                               'Air Pump 1 Current',
-                               'Air Pump 2 Current',
-                               'Light_Voltage',
-                               'Humidity_Voltage',
-                               'pH_Voltage',
-                               'system',
-                               'Valve Messages',
-			                   'Valve Mode' ],
-                       defaultValue: undefined,
-                       paramType: 'body' }
-
-           
-        ,{
-	        "paramType": "body",
-		    "name": "date",
-		    "required": true,
-		    "type": "string",
-		    "description": "Reading date & time - hh:mm:ss DD/MM/YYYY",
-		    "format": "date-time",
-         },{
+        "parameters" : [{
 	        "paramType": "body",
 		    "name": "reading",
 		    "required": true,
-		    "type": "string",
-		    "description": "Reading from the sensor without units",
+		    "type": "Reading",
+		    "description": "Reading"
          }],
 	    "errorResponses" : [
 		    swagger.errors.invalid('date'), 
@@ -261,115 +188,27 @@ var postReading = {
 	    "nickname" : "postReading"
 	},
     action:  function (request, response) { 
-        dataWriter.createReading(request.body, function (err){
+        var validation = swagger.validateModel('Reading', request.body);
+        if (!validation.valid) {
+            return response.send(validation);
+        }
+        dataAccess.createReading(request.body, function (err){
           if (err){
-            console.log('Can\'t create reading: '+e.message);
+            console.log('Can\'t create reading: '+err.message);
             response.status(400);
-            response.send('Error - see API log');
+            response.send(err);
           } else {
             response.status(201);
+            response.send({success: true});
           }
         });
     }
 };
 
-function parseRequest(request) {
-   var url_parts = url.parse(request.url, true);
-   var qs = url_parts.query;
-   return {
-        'range': getTimeRange(qs),
-        'limit': qs.limit,  
-   }
-}
-
-function getAndSendData(sensor_names, params, response) {
-    var cql = buildCQL(sensor_names, params.range, params.limit);
-    console.log('getAndSend: ' + cql);
-    try {
-      pool.query(cql, function(err, rows, fields) {
-      if (err) {
-         throw swagger.errors.notFound('readings');        
-      } else {
-         response.send(parseResult(rows));
-      }
-      });
-    } catch (e) {
-         console.log('Error in function getAndSendData: '+e.message);	
-
-    }
-}
-
-// parses what is returned from db
-function parseResult(rows) {
-    var data = [];
-    if (rows && rows !== []) {
-        for (var i = 0; i < rows.length; i++ ) {
-            data.push({
-                'category': rows[i].sensor_name,
-                'time': rows[i].reading_time.toString(),
-                'value': rows[i].reading_value,
-            });
-        } 
-    }
-    return data;
-}
-
-function buildCQL(sensor_names, range, limit) {
-    var cql = "select sensor_name, reading_time, reading_value from todmorden where sensor_name in ("+sensor_names+")";
-    if (range) {
-        cql += " and reading_time >= '"+range.from+"' and reading_time <= '"+range.to+"'";
-    }
-    cql +=" order by reading_time desc ";
-    if (limit) {
-        cql +=" limit "+limit;
-    }
-    return cql;
-}
-
-function parseSensorNames(rows) {
-    var names = [];
-    //var rows = sensor_names_result.rows;
-    for (var i = 0; i < rows.length; i++ ) {
-        names.push("'"+rows[i].sensor_name+"'");
-    }
-    return names.join();
-};
-
-function getTimeRange(qs) {
-	if (typeof qs.from === 'undefined' 
-           || typeof qs.to === 'undefined') {
-		return false;	
-	}
-	var from_array = qs.from.split('/');	
-	var to_array = qs.to.split('/');
-	var from;
-	var to;
-	if (from_array.length !== 3) {
-		from = "2014-06-26";
-	} else {
-		from = from_array[2]+'-'+from_array[1]+'-'+from_array[0];
-	}	
-	if (to_array.length !== 3) {
-	        to = nextDayString(new Date());
-	} else {
-		to = nextDayString(new Date(to_array[2]+'-'+to_array[1]+'-'+to_array[0]));
-	}
-	return {
-		'from': from,
-		'to': to,
-  	};
-};
-
-// Used for adding a day to the "to" date so that
-// the range ends at the end of that day.
-// Takes date object, returns a string Y-M-D
-function nextDayString(date_obj) {
-	date_obj.setDate(date_obj.getDate() + 1);
-	return date_obj.getFullYear()+'-'+(date_obj.getMonth() + 1)+'-'+date_obj.getDate();
-}
-swagger.addGet(getAll);
-swagger.addGet(getByCategory);
-swagger.addPost(postReading);
+swagger.addModels(models)
+  .addGet(getAll)
+  .addGet(getByCategory)
+  .addPost(postReading);
 swagger.configure(settings.base_url + ':' + settings.port, "0.1");
 app.use(express.static(__dirname + '/node_modules/swagger-node-express/swagger-ui/'));
 app.listen(settings.port);
