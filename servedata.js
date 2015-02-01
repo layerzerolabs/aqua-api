@@ -30,19 +30,43 @@ app.use(allowCrossDomain);
 // Couple the application to the Swagger module.
 swagger.setAppHandler(app);
 
+var handleError = function(err, response) {
+  console.log(err.message);
+  response.status(400);
+  response.send(err);  
+}
+
 var getReadings = function(request, response) {
     var options = queryString.parse(request.query);
-    console.log('options are', options, 'ok');
     dataAccess.getReadings(options, function (err, results){
       if (err){
-        console.log('Can\'t get reading: '+err.message);
-        response.status(400);
-        response.send(err);
+        handleError(err, response);
       } else {
         response.status(200);
         response.send(results);
       }
     });
+};
+
+var getCategories = {
+   'spec': {
+         "description" : "Get data categories",
+         "path" : "/todmorden/categories/",
+         "notes" : "Returns categories of data, i.e. sensor names and message types.",
+         "summary" : "Get categories",
+         "method": "GET",
+         "nickname" : "getCategories"
+	},
+    action:  function (request, response) { 
+        dataAccess.getCategories(function (err, results){
+          if (err){
+            handleError(err, response);
+          } else {
+            response.status(200);
+            response.send(results);
+          }
+        });
+    }
 };
 
 var getAll = {
@@ -206,6 +230,7 @@ var postReading = {
 };
 
 swagger.addModels(models)
+  .addGet(getCategories)
   .addGet(getAll)
   .addGet(getByCategory)
   .addPost(postReading);

@@ -51,11 +51,27 @@ function parseCategories(rows) {
 }
 
 module.exports.createReading = function(reading, callback) {
-    var query = pool.query('insert into todmorden set ?', reading, callback);
+    pool.query('insert into todmorden set ?', reading, callback);
 }
+
+module.exports.getCategories = function(callback) {
+    var sql = 'select distinct sensor_name from todmorden';
+    pool.query(sql, function(err, result) {
+      if (err) {
+         callback(err);      
+      } else {
+         var categories = [];
+         result.forEach(function(row) {
+            categories.push(row.sensor_name);
+         });
+         callback(null, categories);
+      }
+    });
+};
 
 module.exports.getReadings = function(options, callback) {
     var sql = buildSelect(options);
+    runQuery(sql, callback);
     pool.query(sql, function(err, result) {
       if (err) {
          callback(err);      
