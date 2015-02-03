@@ -214,16 +214,16 @@ var postReading = {
       return response.send(validation);
     }
     dataAccess.createReading(request.body, function (err){
-    if (err){
-      console.log('Can\'t create reading: '+err.message);
-      response.status(400);
-      response.send(err);
-    } else {
-      response.status(201);
-      response.send({success: true});
-    }
-  });
-}
+      if (err){
+        console.log('Can\'t create reading: '+err.message);
+        response.status(400);
+        response.send(err);
+      } else {
+        response.status(201);
+        response.send({success: true});
+      }
+    });
+  }
 };
 
 swagger.addModels(models)
