@@ -11,16 +11,16 @@ var express = require('express'),
    
 var app = express();
 var allowCrossDomain = function(req, res, next) {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET');
-    res.header('Access-Control-Allow-Headers', 'Content-Type');
-    next();
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  next();
 };
 
 // Settings file is shared between this app and the swagger ui
 // so this serves it publicly
 app.get('/client-settings.js', function(req, res){
-     res.sendfile('./client-settings.js');
+  res.sendfile('./client-settings.js');
 });
 
 app.use(bodyParser.json());
@@ -36,15 +36,15 @@ var handleError = function(err, response) {
 };
 
 var getReadings = function(request, response) {
-    var options = queryString.parse(request.query);
-    dataAccess.getReadings(options, function (err, results){
-      if (err){
-        handleError(err, response);
-      } else {
-        response.status(200);
-        response.send(results);
-      }
-    });
+  var options = queryString.parse(request.query);
+  dataAccess.getReadings(options, function (err, results){
+    if (err){
+      handleError(err, response);
+    } else {
+      response.status(200);
+      response.send(results);
+    }
+  });
 };
 
 var getCategories = {
@@ -189,8 +189,8 @@ var getByCategory = {
 var postReading = {
   'spec': {
     'description' : 'Post a reading in a single category',
-	  'path' : '/todmorden',
-	  'notes' : 
+    'path' : '/todmorden',
+    'notes' : 
       'Records data in specified category (sensor or message type).' +
       'Date must be in ISO format',
     'method': 'POST',
