@@ -1,10 +1,7 @@
-//This file is proxied to the client.
-//change to http://incredibleaquagdn.no-ip.info
-//in production
-//seperate to settings.js because that file uses requires()
+//These settings are used in servedata.js and also in the swagger ui.
 var settings = {
-   base_url: 'http://localhost',
-   port: 8003,
-}
+   baseUrl: 'http://localhost', //change to http://incredibleaquagdn.no-ip.info in production
+   port: 8003
+};
 module.exports = settings;
 
