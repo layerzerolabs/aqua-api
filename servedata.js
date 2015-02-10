@@ -17,12 +17,6 @@ var allowCrossDomain = function(req, res, next) {
   next();
 };
 
-// Settings file is shared between this app and the swagger ui
-// so this serves it publicly
-app.get('/client-settings.js', function(req, res){
-  res.sendfile('./client-settings.js');
-});
-
 app.use(bodyParser.json());
 app.use(allowCrossDomain);
 
