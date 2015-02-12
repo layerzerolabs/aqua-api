@@ -52,7 +52,7 @@ function parseCategories(rows) {
 
 module.exports.createReading = function(reading, callback) {
     pool.query('insert into todmorden set ?', reading, callback);
-}
+};
 
 module.exports.getCategories = function(callback) {
     var sql = 'select distinct sensor_name from todmorden';
@@ -71,7 +71,6 @@ module.exports.getCategories = function(callback) {
 
 module.exports.getReadings = function(options, callback) {
     var sql = buildSelect(options);
-    runQuery(sql, callback);
     pool.query(sql, function(err, result) {
       if (err) {
          callback(err);      
