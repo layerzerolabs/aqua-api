@@ -21,6 +21,7 @@ var allowCrossDomain = function(req, res, next) {
 
 
 app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({extended: true}));
 app.use(allowCrossDomain);
 var swagger = require('swagger-node-express').createNew(app);
 swaggerValidator(swagger);
@@ -196,11 +197,24 @@ var postReading = {
       'Date must be in ISO format',
     'method': 'POST',
     'parameters' : [{
-      'paramType': 'body',
-      'name': 'reading',
+      'paramType': 'form',
+      'name': 'sensor_name',
       'required': true,
-      'type': 'Reading',
-      'description': 'Reading'
+      'type': 'string',
+      'description': 'Category, for example name of sensor or "system" etc'
+     }, {
+      'paramType': 'form',
+      'name': 'reading_time',
+      'required': true,
+      'type': 'string',
+      'format': 'date-time',
+      'description': 'When the reading was taken. Dates without times default to midnight'
+     }, {
+      'paramType': 'form',
+      'name': 'reading_value',
+      'required': true,
+      'type': 'string',
+      'description': 'The reading value (without units) or message content'
      }],
     'errorResponses' : [
       swagger.errors.invalid('date'), 
