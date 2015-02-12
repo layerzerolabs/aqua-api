@@ -7,12 +7,11 @@ var express = require('express'),
   bodyParser = require('body-parser'),
   dataAccess = require('./dataAccess'),
   models = require('./models'),  
-  SwaggerValidator = require('swagger-model-validator'),
+  swaggerValidator = require('swagger-model-validator'),
   settings = require('./client-settings.js'),
   queryString = require('qs');
    
 var app = express();
-
 var allowCrossDomain = function(req, res, next) {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'GET');
@@ -20,9 +19,11 @@ var allowCrossDomain = function(req, res, next) {
     next();
 };
 
+
 app.use(bodyParser.json());
 app.use(allowCrossDomain);
 var swagger = require('swagger-node-express').createNew(app);
+swaggerValidator(swagger);
 
 var handleError = function(err, response) {
   console.log(err.message);
@@ -207,7 +208,6 @@ var postReading = {
     'nickname' : 'postReading'
   },
   action:  function (request, response) { 
-      console.log(request.body);
     var validation = swagger.validateModel('Reading', request.body);
     if (!validation.valid) {
       return response.send(validation.GetFormattedErrors());
@@ -224,17 +224,6 @@ var postReading = {
   });
 }
 };
-
-// Calling the SwaggerValidator constructor extends swagger with the validateModel method
-var validator = new SwaggerValidator(swagger);
-
-//validator.addFieldValidator("Reading", "reading_time", function(name, value) {
-//    var errors = [];
-//    if(value.length < 8) {
-//        errors.push(new Error("reading_time (" + value + ") is too short to be valid"));
-//    }
-//    return errors.length > 0 ? errors : null;
-//});
 
 swagger.addModels(models)
   .addGet(getCategories)
