@@ -1,8 +1,10 @@
+/* jshint node: true */
+/* global require, console, __dirname */
+
 'use strict';
 
 var express = require('express'),
   bodyParser = require('body-parser'),
-  swagger = require('swagger-node-express'),
   dataAccess = require('./dataAccess'),
   models = require('./models'),  
   SwaggerValidator = require('swagger-model-validator'),
@@ -10,6 +12,7 @@ var express = require('express'),
   queryString = require('qs');
    
 var app = express();
+
 var allowCrossDomain = function(req, res, next) {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'GET');
@@ -17,17 +20,9 @@ var allowCrossDomain = function(req, res, next) {
     next();
 };
 
-// Settings file is shared between this app and the swagger ui
-// so this serves it publicly
-app.get('/client-settings.js', function(req, res){
-     res.sendfile('./client-settings.js');
-});
-
 app.use(bodyParser.json());
 app.use(allowCrossDomain);
-
-// Couple the application to the Swagger module.
-swagger.setAppHandler(app);
+var swagger = require('swagger-node-express').createNew(app);
 
 var handleError = function(err, response) {
   console.log(err.message);
@@ -35,9 +30,12 @@ var handleError = function(err, response) {
   response.send(err);  
 };
 
-var getReadings = function(request, response) {
-    var options = queryString.parse(request.query);
-    dataAccess.getReadings(options, function (err, results){
+var getReadings = function(params, response) {
+    var validation = swagger.validateParams(getAll.spec, params, true);
+    if (!validation.valid) {
+      return response.send(validation.GetFormattedErrors());
+    }
+    dataAccess.getReadings(params, function (err, results){
       if (err){
         handleError(err, response);
       } else {
@@ -114,7 +112,8 @@ var getAll = {
     'nickname' : 'getAll'
   },
   action:  function (request, response) { 
-    return getReadings(request, response);
+    var params = queryString.parse(request.query);
+    return getReadings(params, response);
   }
 };
 
@@ -155,14 +154,14 @@ var getByCategory = {
       'name': 'from',
       'required': false,
       'type': 'string',
-      'description': 'Start date - DD/MM/YYYY',
+      'description': 'Start date - YYYY-MM-DD',
       'format': 'date',
     }, {
       'paramType': 'query',
       'name': 'to',
       'required': false,
       'type': 'string',
-      'description': 'End date - DD/MM/YYYY',
+      'description': 'End date - YYYY-MM-DD',
       'format': 'date', 
     }, {
       'paramType': 'query',
@@ -182,7 +181,8 @@ var getByCategory = {
     'nickname' : 'getByCategory'
   },
   action:  function (request, response) { 
-    return getReadings(request, response);
+    var params = queryString.parse(request.query);  
+    return getReadings(params, response);
   }
 };
 
@@ -207,11 +207,10 @@ var postReading = {
     'nickname' : 'postReading'
   },
   action:  function (request, response) { 
-    // Calling the SwaggerValidator constructor extends swagger with the validateModel method
-    new SwaggerValidator(swagger);
+      console.log(request.body);
     var validation = swagger.validateModel('Reading', request.body);
     if (!validation.valid) {
-      return response.send(validation);
+      return response.send(validation.GetFormattedErrors());
     }
     dataAccess.createReading(request.body, function (err){
     if (err){
@@ -225,6 +224,17 @@ var postReading = {
   });
 }
 };
+
+// Calling the SwaggerValidator constructor extends swagger with the validateModel method
+var validator = new SwaggerValidator(swagger);
+
+//validator.addFieldValidator("Reading", "reading_time", function(name, value) {
+//    var errors = [];
+//    if(value.length < 8) {
+//        errors.push(new Error("reading_time (" + value + ") is too short to be valid"));
+//    }
+//    return errors.length > 0 ? errors : null;
+//});
 
 swagger.addModels(models)
   .addGet(getCategories)
