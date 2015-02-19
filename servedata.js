@@ -31,6 +31,7 @@ var checkApiKey = function(request, response, next) {
   if (keySent !== settings.apiKey) {
     response.status(401);
     response.send({'success': false, 'error': 'Incorrect/Missing API Key'});
+    return;
   } 
   return next(); 
 };
