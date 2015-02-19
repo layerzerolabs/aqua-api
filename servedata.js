@@ -27,10 +27,10 @@ var swagger = require('swagger-node-express').createNew(app);
 swaggerValidator(swagger);
 
 var checkApiKey = function(request, response, next) {
-  var keySent = request.query.api_key;
-  if (keySent !== settings.apiKey) {
+  var query = queryString.parse(request.query);
+  if (query.api_key !== settings.apiKey) {
     response.status(401);
-    response.send({'success': false, 'error': 'Incorrect/Missing API Key'});
+    response.send({'success': false, 'errors': ['Incorrect/Missing API Key']});
     return;
   } 
   return next(); 
@@ -235,7 +235,7 @@ var postReading = {
     checkApiKey(request, response, function() {
       var validation = swagger.validateModel('Reading', request.body);
       if (!validation.valid) {
-        return response.send(validation.GetFormattedErrors());
+        return response.send({'success': false, 'errors': validation.GetErrorMessages()});
       }
       dataAccess.createReading(request.body, function (err){
         if (err){
