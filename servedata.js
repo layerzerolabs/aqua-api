@@ -26,6 +26,15 @@ app.use(allowCrossDomain);
 var swagger = require('swagger-node-express').createNew(app);
 swaggerValidator(swagger);
 
+var checkApiKey = function(request, response, next) {
+  var keySent = request.query.api_key;
+  if (keySent !== settings.apiKey) {
+    response.status(401);
+    response.send({'success': false, 'error': 'Incorrect/Missing API Key'});
+  } 
+  return next(); 
+};
+
 var handleError = function(err, response) {
   console.log(err.message);
   response.status(400);
@@ -222,21 +231,23 @@ var postReading = {
     'nickname' : 'postReading'
   },
   action:  function (request, response) { 
-    var validation = swagger.validateModel('Reading', request.body);
-    if (!validation.valid) {
-      return response.send(validation.GetFormattedErrors());
-    }
-    dataAccess.createReading(request.body, function (err){
-    if (err){
-      console.log('Can\'t create reading: '+err.message);
-      response.status(400);
-      response.send(err);
-    } else {
-      response.status(201);
-      response.send({success: true});
-    }
-  });
-}
+    checkApiKey(request, response, function() {
+      var validation = swagger.validateModel('Reading', request.body);
+      if (!validation.valid) {
+        return response.send(validation.GetFormattedErrors());
+      }
+      dataAccess.createReading(request.body, function (err){
+        if (err){
+          console.log('Can\'t create reading: '+err.message);
+          response.status(400);
+          response.send(err);
+        } else {
+          response.status(201);
+          response.send({success: true});
+        }
+      });
+    });
+  }
 };
 
 swagger.addModels(models)
