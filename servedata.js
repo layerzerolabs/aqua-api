@@ -30,7 +30,7 @@ var checkApiKey = function(request, response, next) {
   var keySent = request.query.api_key;
   if (keySent !== settings.apiKey) {
     response.status(401);
-    response.send({'success': false, 'error': 'Incorrect/Missing API Key'});
+    return response.send({'success': false, 'error': 'Incorrect/Missing API Key'});
   } 
   return next(); 
 };
@@ -234,6 +234,7 @@ var postReading = {
     checkApiKey(request, response, function() {
       var validation = swagger.validateModel('Reading', request.body);
       if (!validation.valid) {
+        response.status(405);
         return response.send(validation.GetFormattedErrors());
       }
       dataAccess.createReading(request.body, function (err){

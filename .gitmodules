@@ -1,0 +1,3 @@
+[submodule "node_modules/swagger-model-validator"]
+	path = node_modules/swagger-model-validator
+	url = git@github.com:/layerzerolabs/swagger-model-validator
