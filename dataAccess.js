@@ -54,6 +54,10 @@ module.exports.createReading = function(reading, callback) {
     pool.query('insert into todmorden set ?', reading, callback);
 };
 
+module.exports.deleteReading = function(id, callback) {
+    pool.query('delete from todmorden where id = ?', id, callback);
+};
+
 module.exports.getCategories = function(callback) {
     var sql = 'select distinct sensor_name from todmorden';
     pool.query(sql, function(err, result) {

@@ -15,7 +15,8 @@ var app = express();
 var allowCrossDomain = function(req, res, next) {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'GET');
-    res.header('Access-Control-Allow-Headers', 'Content-Type');
+    res.header('Access-Control-Allow-Methods', 'DELETE');
+    res.header('Access-Control-Allow-Headers', ['Content-Type', 'x-api-key']);
     next();
 };
 
@@ -27,7 +28,7 @@ var swagger = require('swagger-node-express').createNew(app);
 swaggerValidator(swagger);
 
 var checkApiKey = function(request, response, next) {
-  var keySent = request.query.api_key;
+  var keySent = request.query.api_key || request.headers['x-api-key'];
   if (keySent !== settings.apiKey) {
     response.status(401);
     return response.send({'success': false, 'error': 'Incorrect/Missing API Key'});
@@ -237,25 +238,58 @@ var postReading = {
         response.status(405);
         return response.send(validation.GetFormattedErrors());
       }
-      dataAccess.createReading(request.body, function (err){
+      dataAccess.createReading(request.body, function (err, result){
         if (err){
           console.log('Can\'t create reading: '+err.message);
           response.status(400);
           response.send(err);
         } else {
           response.status(201);
-          response.send({success: true});
+          response.send({id: result.insertId});
         }
       });
     });
   }
 };
 
+var deleteReading = {
+  'spec': {
+    'description' : 'Delete a reading',
+	  'path' : '/todmorden/{id}',
+	  'notes' : 
+      'Records data in specified category (sensor or message type).' +
+      'Date must be in ISO format',
+    'method': 'POST',
+    'parameters' : [{
+      'paramType': 'path',
+      'name': 'id',
+      'required': true,
+      'type': 'string',
+      'description': 'Delete the reading with this id'
+     }],
+    'nickname' : 'deleteReading'
+  },
+  action:  function (request, response) { 
+    checkApiKey(request, response, function() {
+      dataAccess.deleteReading(request.params.id, function (err, result){
+        if (err){
+          console.log('Can\'t delete reading: '+err.message);
+          response.status(400);
+          response.send(err);
+        } else {
+          response.status(200);
+          response.send({success: true});
+        }
+      });
+    });
+  }
+};
 swagger.addModels(models)
   .addGet(getCategories)
   .addGet(getAll)
   .addGet(getByCategory)
-  .addPost(postReading);
+  .addPost(postReading)
+  .addDelete(deleteReading);
 swagger.configure(settings.baseUrl + ':' + settings.port, '0.1');
 app.use(express.static(__dirname + '/node_modules/swagger-node-express/swagger-ui/'));
 app.listen(settings.port);
