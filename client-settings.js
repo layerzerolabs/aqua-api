@@ -1,5 +1,5 @@
 var settings = {
-   baseUrl: 'http://localhost', //change to http://incredibleaquagdn.no-ip.info in production
+   baseUrl: 'http://incredibleaquagdn.no-ip.info',
    port: 8003,
    apiKey: "OoheiN8uyaiB7Iefahloo3aZAu3Ahnah"
 };

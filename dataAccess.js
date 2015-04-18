@@ -1,7 +1,10 @@
 var mysql = require('mysql');
- var dbsettings = require('./dbconf.js');
+var dbsettings = require('./dbconf.js');
+var util = require('util');
  
+console.log(util.inspect(process.memoryUsage()));
 var pool = mysql.createPool({
+	 queuelimit: 10,
          host     : dbsettings.host,
          user     : dbsettings.user,
          password : dbsettings.password,
@@ -74,8 +77,10 @@ module.exports.getCategories = function(callback) {
 };
 
 module.exports.getReadings = function(options, callback) {
+//console.log('before', util.inspect(process.memoryUsage()));
     var sql = buildSelect(options);
     pool.query(sql, function(err, result) {
+//console.log('after', util.inspect(process.memoryUsage()));
       if (err) {
          callback(err);      
       } else {
