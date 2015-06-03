@@ -9,6 +9,7 @@ var express = require('express'),
   models = require('./models'),  
   swaggerValidator = require('swagger-model-validator'),
   settings = require('./client-settings.js'),
+  util = require('util'),
   queryString = require('qs');
    
 var app = express();
@@ -43,6 +44,7 @@ var handleError = function(err, response) {
 };
 
 var getReadings = function(params, response) {
+    console.log(util.inspect(process.memoryUsage()));
     var validation = swagger.validateParams(getAll.spec, params, true);
     if (!validation.valid) {
       return response.send(validation.GetFormattedErrors());
