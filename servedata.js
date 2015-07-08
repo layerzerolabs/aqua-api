@@ -44,7 +44,6 @@ var handleError = function(err, response) {
 };
 
 var getReadings = function(params, response) {
-    console.log(util.inspect(process.memoryUsage()));
     var validation = swagger.validateParams(getAll.spec, params, true);
     if (!validation.valid) {
       return response.send(validation.GetFormattedErrors());
